@@ -1,0 +1,33 @@
+# docker compose up -d --build   -> app on http://localhost:3000 (APP_PORT to change)
+# docker compose down -v         -> stop and remove containers + the mongo volume
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    # no "ports:" on purpose - only the app talks to mongo, over the compose network
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  app:
+    build: .
+    image: smirkdev/notes-app:dev
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      MONGO_URL: mongodb://mongo:27017
+      DB_NAME: notes_lab
+      COLLECTION_NAME: notes
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
