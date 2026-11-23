@@ -16,6 +16,8 @@
  *
  * Extra, for the viva: GET /db renders a live inspector of the MongoDB server,
  * and GET /api/notes returns the raw documents as JSON.
+ *
+ * PBL: GET /health reports app + database status for Docker and GitHub Actions.
  */
 
 const path = require("path");
@@ -27,6 +29,7 @@ const {
     getCollection,
     getDatabase,
     client,
+    closeDB,
     MONGO_URL,
     DB_NAME,
     COLLECTION_NAME,
@@ -305,6 +308,25 @@ app.post(
  * Routes — inspection (not required by the exam; useful during the viva)
  * ------------------------------------------------------------------ */
 
+/**
+ * GET /health — liveness + database check for Docker and the CI pipeline.
+ * 200 only when MongoDB answers a ping, 503 otherwise, so a container that is
+ * up but cannot reach its database is reported as unhealthy.
+ */
+app.get("/health", async (req, res) => {
+    try {
+        await getDatabase().command({ ping: 1 });
+        res.json({
+            status: "ok",
+            database: "up",
+            db: DB_NAME,
+            uptime: Math.round(process.uptime()),
+        });
+    } catch (err) {
+        res.status(503).json({ status: "error", database: "down", detail: err.message });
+    }
+});
+
 // GET /api/notes — the raw documents, exactly as MongoDB returns them.
 app.get(
     "/api/notes",
@@ -405,6 +427,17 @@ connectDB()
             }
             throw err;
         });
+
+        // `docker stop` / `docker compose down` send SIGTERM. Node ignores it when
+        // it runs as PID 1, so the container would sit there for 10 s and then be
+        // killed. Close the HTTP server and the Mongo pool and exit cleanly instead.
+        const shutdown = (signal) => {
+            console.log(`${signal} received, shutting down`);
+            server.close(() => closeDB().finally(() => process.exit(0)));
+            setTimeout(() => process.exit(0), 5000).unref();
+        };
+        process.on("SIGTERM", shutdown);
+        process.on("SIGINT", shutdown);
     })
     .catch((err) => {
         console.error("Could not connect to MongoDB — is the server running?");
