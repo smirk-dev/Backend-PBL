@@ -1,0 +1,108 @@
+# CI/CD for the My Notes app
+#   test           -> docker compose up (app + mongo), run automationTesting.py against every route
+#   build-and-push -> only if test passed: build the image and push it to Docker Hub
+#
+# Runs on every push to main, on pull requests (test only), by hand from the
+# Actions tab, and every day on a schedule so the image is rebuilt on a fresh
+# node:22-alpine base and the tests keep proving the app still works.
+name: CI/CD - test, build, push
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 2 * * *" # every day at 02:30 UTC = 08:00 IST
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: smirkdev/notes-app
+
+jobs:
+  test:
+    name: Test (automationTesting.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Start app + mongo with docker compose
+        run: docker compose up -d --build
+
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/health; then
+              echo
+              echo "app is healthy after $i tries"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "app never became healthy"
+          exit 1
+
+      - name: Run automationTesting.py
+        env:
+          BASE_URL: http://localhost:3000
+        run: python automationTesting.py
+
+      - name: Dump container logs (only on failure)
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
+
+  build-and-push:
+    name: Build and push to Docker Hub
+    needs: test
+    # never push from a pull request, only from main (push, manual or scheduled run)
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        env:
+          DOCKERUSERNAME: ${{ secrets.DOCKERUSERNAME }}
+          DOCKERTOKEN: ${{ secrets.DOCKERTOKEN }}
+        run: echo "$DOCKERTOKEN" | docker login -u "$DOCKERUSERNAME" --password-stdin
+
+      - name: Build image
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "SHORT_SHA=$SHORT_SHA" >> "$GITHUB_ENV"
+          docker build -t "$IMAGE:latest" -t "$IMAGE:$SHORT_SHA" .
+
+      - name: Push image
+        run: |
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:$SHORT_SHA"
+          echo "### Pushed \`$IMAGE:latest\` and \`$IMAGE:$SHORT_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Log out of Docker Hub
+        if: always()
+        run: docker logout
