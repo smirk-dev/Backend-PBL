@@ -1,11 +1,11 @@
 # My Notes — PBL: Docker + automated API tests + GitHub Actions CI/CD
 
-[![CI/CD - test, build, push](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/workflows/ci-cd.yml)
+[![CI/CD - test, build, push](https://github.com/smirk-dev/Backend-PBL/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/smirk-dev/Backend-PBL/actions/workflows/ci-cd.yml)
 [![Docker Hub](https://img.shields.io/docker/v/smirkdev/notes-app?label=smirkdev%2Fnotes-app&logo=docker&sort=date)](https://hub.docker.com/r/smirkdev/notes-app)
 
 **Suryansh Mishra · SAP ID 590012069** — Backend Development (CSFS3008P), B.Tech Sem 5, UPES.
 PBL assignment for Theory Unit 4. Main course repository:
-**<https://github.com/smirk-dev/Backend-Development>**
+**<https://github.com/smirk-dev/BackendDevelopment>**
 
 The PBL (end of `Theory/Unit 4/001 Combined Hands On Task.md`) asks for five things, in a new repository:
 
@@ -137,8 +137,8 @@ requirements-test.txt                     requests, for the test script
 Needs Docker Desktop (or Docker Engine with the compose plugin) and Python 3 for the tests.
 
 ```bash
-git clone https://github.com/smirk-dev/backend-pbl-notes-cicd.git
-cd backend-pbl-notes-cicd
+git clone https://github.com/smirk-dev/Backend-PBL.git
+cd Backend-PBL
 
 docker compose up -d --build          # app on http://localhost:3000
 # APP_PORT=3050 docker compose up -d --build    if port 3000 is taken
@@ -264,10 +264,10 @@ GitHub Actions runs (every one ran `test` and then `build-and-push`):
 
 | Trigger | Commit | Result | Run |
 |---|---|---|---|
-| push to main | `fbe6b41` | test 55/55 passed, pushed `latest` + `fbe6b41` | [45567034754](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/runs/45567034754) |
-| push to main | `fae426f` | test 55/55 passed, pushed `latest` + `fae426f` | [45567272233](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/runs/45567272233) |
-| workflow_dispatch (manual) | `fae426f` | test 55/55 passed, pushed `latest` + `fae426f` | [45567431556](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/runs/45567431556) |
-| schedule (daily 02:30 UTC) | — | runs every morning; see the [Actions tab](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/workflows/ci-cd.yml?query=event%3Aschedule) | — |
+| push to main | `fbe6b41` | test 55/55 passed, pushed `latest` + `fbe6b41` | [45567034754](https://github.com/smirk-dev/Backend-PBL/actions/runs/45567034754) |
+| push to main | `fae426f` | test 55/55 passed, pushed `latest` + `fae426f` | [45567272233](https://github.com/smirk-dev/Backend-PBL/actions/runs/45567272233) |
+| workflow_dispatch (manual) | `fae426f` | test 55/55 passed, pushed `latest` + `fae426f` | [45567431556](https://github.com/smirk-dev/Backend-PBL/actions/runs/45567431556) |
+| schedule (daily 02:30 UTC) | — | runs every morning; see the [Actions tab](https://github.com/smirk-dev/Backend-PBL/actions/workflows/ci-cd.yml?query=event%3Aschedule) | — |
 
 From the `test` job log:
 
