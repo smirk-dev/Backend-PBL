@@ -259,3 +259,49 @@ Screenshots (app running in the container, talking to the compose `mongo` servic
 | Notes list | Database inspector (`mongodb://mongo:27017`) | `/health` |
 |---|---|---|
 | ![notes](screenshots/01-notes-list-in-container.png) | ![db](screenshots/02-database-inspector-mongo-service.png) | ![health](screenshots/03-health-endpoint.png) |
+
+GitHub Actions runs (every one ran `test` and then `build-and-push`):
+
+| Trigger | Commit | Result | Run |
+|---|---|---|---|
+| push to main | `fbe6b41` | test 55/55 passed, pushed `latest` + `fbe6b41` | [45567034754](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/runs/45567034754) |
+| push to main | `fae426f` | test 55/55 passed, pushed `latest` + `fae426f` | [45567272233](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/runs/45567272233) |
+| workflow_dispatch (manual) | `fae426f` | test 55/55 passed, pushed `latest` + `fae426f` | [45567431556](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/runs/45567431556) |
+| schedule (daily 02:30 UTC) | — | runs every morning; see the [Actions tab](https://github.com/smirk-dev/backend-pbl-notes-cicd/actions/workflows/ci-cd.yml?query=event%3Aschedule) | — |
+
+From the `test` job log:
+
+```
+app is healthy after 2 tries
+55 passed, 0 failed, 55 total
+All tests passed!
+```
+
+From the `build-and-push` job log (workflow_dispatch run):
+
+```
+Login Succeeded
+latest: digest: sha256:3306a2af0e7d8c80a9cf3cd6b13e0712d4f19aaf30927fc7308204ab3852f161 size: 856
+fae426f: digest: sha256:3306a2af0e7d8c80a9cf3cd6b13e0712d4f19aaf30927fc7308204ab3852f161 size: 856
+Removing login credentials for https://index.docker.io/v1/
+```
+
+The published image, pulled back from Docker Hub and tested on a clean network:
+
+```
+$ docker pull smirkdev/notes-app:latest
+docker.io/smirkdev/notes-app:latest          (digest sha256:3306a2af...f161, user=node)
+
+$ docker network create pbl-verify
+$ docker run -d --name pbl-verify-mongo --network pbl-verify mongo:7
+$ docker run -d --name pbl-verify-app --network pbl-verify -p 3051:3000 \
+    -e MONGO_URL=mongodb://pbl-verify-mongo:27017 smirkdev/notes-app:latest
+$ curl -i http://localhost:3051/health
+HTTP/1.1 200 OK
+{"status":"ok","database":"up","db":"notes_lab","uptime":2}
+$ curl -o /dev/null -w '%{http_code}' http://localhost:3051/notes
+200
+$ BASE_URL=http://localhost:3051 python automationTesting.py
+55 passed, 0 failed, 55 total
+All tests passed!
+```
